@@ -1,0 +1,331 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*.
+
+```{r, echo=FALSE}
+library(tidyverse)
+library(infer)
+library(knitr)
+library(broom)
+library(corrplot)
+```
+
+```{r, echo=FALSE}
+# Load the necessary library
+library(tidyverse)
+
+# Read the CSV file
+data <- read_csv("final_big_ten_teams_data.csv")
+
+
+# View the first few rows of the dataset
+data
+
+# Get a summary of the dataset
+summary(data)
+
+# Display the structure of the dataset
+
+str(data)
+```
+
+```{r, echo=FALSE}
+
+fb <-  read_csv("final_big_ten_teams_data.csv")
+fb_numeric <- data.frame(fb[, -c(1, 2)])
+fb_first15 <- fb_numeric[,1:15]
+fb_15thru30 <- fb_numeric[,c(3, 16:30)]
+fb_31thru45 <- fb_numeric[,c(3, 31:45)]
+fb_46thru60 <- fb_numeric[,c(3, 46:60)]
+fb_60thru70 <- fb_numeric[,c(3, 60:70)]
+cor_matrix <- cor(fb_first15)
+par(mfrow = c(1, 1), mar = c(1, 1, 1, 1))
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust",
+tl.col = "black", tl.srt = 45)
+cor_matrix <- cor(fb_15thru30)
+par(mfrow = c(1, 1), mar = c(1, 1, 1, 1))
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust",
+tl.col = "black", tl.srt = 45)
+cor_matrix <- cor(fb_31thru45)
+par(mfrow = c(1, 1), mar = c(1, 1, 1, 1))
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust",
+tl.col = "black", tl.srt = 45)
+cor_matrix <- cor(fb_60thru70)
+par(mfrow = c(1, 1), mar = c(1, 1, 1, 1))
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45)
+```
+
+```{r, echo=FALSE}
+# Scatter plot for Total Offensive Yards vs Total Points
+ggplot(data, aes(x = Offensive_Yards_Total, y = totalpoints)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Total Offensive Yards vs Total Points",
+       x = "Total Offensive Yards",
+       y = "Total Points") +
+  theme_minimal()
+
+# Scatter plot for Offensive Plays Count vs Yards Per Offensive Play
+ggplot(data, aes(x = Offensive_Plays_Count, y = Yards_Per_Offensive_Play)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Offensive Plays Count vs Yards Per Offensive Play",
+       x = "Offensive Plays Count",
+       y = "Yards Per Offensive Play") +
+  theme_minimal()
+
+# Selecting the relevant columns for correlation analysis
+offensive_data <- data %>% 
+  select(Offensive_Yards_Total, totalpoints, Offensive_Plays_Count, Yards_Per_Offensive_Play) %>% 
+  na.omit()  # Remove NA values to ensure the correlation computation works
+
+# Calculate correlation matrix
+cor_matrix <- cor(offensive_data)
+
+# Plot the correlation matrix
+corrplot(cor_matrix, method = "circle", type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45, 
+         title = "Correlation of Selected Offensive Metrics")
+
+
+```
+
+```{r, echo=FALSE}
+# Histogram for Yards Per Offensive Play
+ggplot(data, aes(x = Yards_Per_Offensive_Play)) +
+  geom_histogram(binwidth = 0.5, fill = "green", color = "black") +
+  labs(title = "Histogram of Yards Per Offensive Play",
+       x = "Yards Per Offensive Play",
+       y = "Frequency") +
+  theme_minimal()
+
+# Boxplot for Offensive Yards Total by Team
+ggplot(data, aes(x = Team_Name, y = Offensive_Yards_Total)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Offensive Yards Total by Team",
+       x = "Team",
+       y = "Offensive Yards Total") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```
+
+```{r, echo=FALSE}
+# adjusting the histogram with dynamic bin width
+# Calculate the bin width using the Freedman-Diaconis rule (if applicable)
+bin_width <- 2 * IQR(data$totalpoints) / (length(data$totalpoints)^(1/3))
+
+# Histogram for Total Points with adjusted bin width
+ggplot(data, aes(x = totalpoints)) +
+  geom_histogram(binwidth = bin_width, fill = "blue", color = "black") +
+  labs(title = "Adjusted Histogram of Total Points",
+       x = "Total Points",
+       y = "Frequency") +
+  theme_minimal()
+
+# Adding a density plot for Total Points
+ggplot(data, aes(x = totalpoints)) +
+  geom_density(fill = "lightblue", alpha = 0.5) +
+  labs(title = "Density Plot of Total Points",
+       x = "Total Points",
+       y = "Density") +
+  theme_minimal()
+
+```
+
+```{r, echo=FALSE}
+# Check if GGally is not installed and then install it
+if (!requireNamespace("GGally", quietly = TRUE)) {
+  install.packages("GGally")
+}
+library(GGally)
+library(corrplot)
+
+# Selecting relevant columns
+selected_vars <- data %>% 
+  select(totalpoints, Offensive_Yards_Total, Offensive_Plays_Count, Yards_Per_Offensive_Play)
+
+# Correlation matrix plot
+cor_data <- cor(selected_vars, use = "complete.obs")  # Calculate correlation matrix
+corrplot(cor_data, method = "circle")
+
+# Comprehensive pair plot using GGally package
+ggpairs(selected_vars)
+
+# Creating residual plots for a simple linear model (example: totalpoints ~ Offensive_Yards_Total)
+model <- lm(totalpoints ~ Offensive_Yards_Total, data = data)
+data$residuals <- residuals(model)
+
+ggplot(data, aes(x = Offensive_Yards_Total, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residual Plot for Total Points ~ Offensive Yards Total",
+       x = "Offensive Yards Total",
+       y = "Residuals")
+
+# Boxplots for key variables to check for outliers
+ggplot(data, aes(y = totalpoints, x = 1)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Total Points",
+       x = "",
+       y = "Total Points")
+
+
+
+```
+
+```{r, echo=FALSE}
+#Histograms for Opponent Punt Return Yards
+BigTen23_OppPuntYrds<-data%>%
+  specify(response=oppnetpuntreturnyards)%>%
+  hypothesize(null="point",mu=mean(data$oppnetpuntreturnyards))%>%
+  generate(reps=1000,type="bootstrap")%>%
+  calculate(stat="mean")
+
+ggplot(data=BigTen23_OppPuntYrds,mapping=aes(stat))+geom_histogram(binwidth=15,fill="magenta",color="black")+geom_vline(xintercept=mean(data$oppnetpuntreturnyards),color='green')
+
+ggplot(data=data,mapping=aes(oppnetpuntreturnyards))+geom_histogram(binwidth=40,fill="magenta",color="black")+geom_vline(xintercept=mean(data$oppnetpuntreturnyards),color='green')
+
+ggplot(data,aes(x=Team_Name,y=oppnetpuntreturnyards))+geom_boxplot()+labs(title="Boxplot of Allowed Net Punt Return Yards Total by Team",x="Team",y="Allowed Net Punt Return Yards Total")+theme_minimal()+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+
+```{r, echo=FALSE}
+#Histograms for Kickoff Return Yards
+BigTen23_KickoffReturnYds<-data%>%
+  specify(response=kickoffreturnyards)%>%
+  hypothesize(null="point",mu=mean(data$kickoffreturnyards))%>%
+  generate(reps=1000,type="bootstrap")%>%
+  calculate(stat="mean")
+
+ggplot(data=BigTen23_KickoffReturnYds,mapping=aes(stat))+geom_histogram(binwidth=15,fill="cyan",color="black")+geom_vline(xintercept=mean(data$kickoffreturnyards),color='hotpink')
+```
+
+```{r, echo=FALSE}
+BigTen23_FieldGoals<-data%>%
+  specify(response=feildgoals)%>%
+  hypothesize(null="point",mu=mean(data$feildgoals))%>%
+  generate(reps=1000,type="bootstrap")%>%
+  calculate(stat="mean")
+
+ggplot(data=BigTen23_FieldGoals,mapping=aes(stat))+geom_histogram(binwidth=0.5,fill="green",color="black")+geom_vline(xintercept=mean(data$feildgoals),color='red')
+ggplot(data=data,mapping=aes(feildgoals))+geom_histogram(binwidth=1.5,fill="green",color="black")+geom_vline(xintercept=mean(data$feildgoals),color='red')
+
+ggplot(data,aes(x=Team_Name,y=feildgoals))+geom_boxplot()+labs(title="Boxplot of Field Goals by Team",x="Team",y="Field Goals Total")+theme_minimal()+theme(axis.text.x=element_text(angle=90, hjust=1))
+```
+
+```{r, echo=FALSE}
+
+# Histogram for interceptions thrown
+ggplot(data, aes(x = interceptionsthrownx)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +  # Adjust binwidth as needed
+  labs(title = "Histogram of Interceptions Thrown",
+       x = "Interceptions Thrown",
+       y = "Frequency") +
+  theme_minimal()
+
+```
+
+```{r, echo=FALSE}
+
+# Histogram for interceptions thrown
+ggplot(data, aes(x = interceptionsthrownx)) +
+  geom_histogram(binwidth = 2, fill = "blue", color = "black") +  # Adjust binwidth as needed
+  labs(title = "Histogram of Interceptions Thrown",
+       x = "Interceptions Thrown",
+       y = "Count") +
+  theme_minimal()
+```
+
+```{r, echo=FALSE}
+# Histogram for yards allowed per game
+ggplot(data, aes(x = yardspergameallowed)) +
+  geom_histogram(binwidth = 20, fill = "red", color = "black") +  # Adjust binwidth as needed
+  labs(title = "Histogram of Yards Allowed per Game",
+       x = "Yards Allowed per Game",
+       y = "Frequency") +
+  theme_minimal()
+
+```
+
+```{r, echo=FALSE}
+ggplot(data, aes(x = totaltdsallowed)) +
+  geom_histogram(binwidth = bin_width, fill = "green", color = "black", alpha = 0.6) +
+  geom_density(aes(y = ..count..), color = "blue", size = 1.5) +  # Adding a density overlay
+  labs(title = "Histogram of Total Touchdowns Allowed with Density Overlay",
+       x = "Total Touchdowns Allowed",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+```{r, echo=FALSE}
+def_model<- lm( Win_ratio~ netpuntreturnyards + x4thpercent + offensive_tds_allowed + totaltdsallowed + yardspergameallowed + interceptionsthrownx, data = data)
+glance(def_model)
+tidy(def_model)
+```
+
+```{r, echo=FALSE}
+att_model<- lm( Win_ratio~  Offensive_Yards_Total + Yards_Per_Offensive_Play+ Offensive_Plays_Count + totalpoints, data = data)
+glance(att_model)
+tidy(att_model)
+```
+
+```{r}
+model1<- lm(Win_ratio ~ netpuntreturnyards + x4thpercent + offensive_tds_allowed + totaltdsallowed + yardspergameallowed + interceptionsthrownx + Offensive_Yards_Total + Yards_Per_Offensive_Play+ Offensive_Plays_Count + totalpoints, data = data)
+```
+
+```{r, echo=FALSE}
+mod_fit <- step(object = model1, direction = "backward", trace = FALSE)
+tidy(mod_fit)
+glance(mod_fit)
+```
+
+```{r, echo=FALSE}
+perf_model<- lm(Win_ratio ~ offensive_tds_allowed + totaltdsallowed + yardspergameallowed + interceptionsthrownx + Offensive_Yards_Total + Yards_Per_Offensive_Play+ Offensive_Plays_Count + totalpoints , data = data)
+
+mod_fit_opt <- step(object = perf_model, direction = "backward", trace = FALSE)
+tidy(mod_fit_opt)
+glance(mod_fit_opt)
+
+```
+
+```{r}
+finaldataMSU <- data %>% filter(Team_Name == "Michigan St.")%>%    select(offensive_tds_allowed, Yards_Per_Offensive_Play, totalpoints)
+
+winpredMSU <- predict(mod_fit_opt, 
+              newdata = finaldataMSU, 
+              interval = "prediction",
+              level = 0.95)
+winpredMSU
+```
+
+```{r, echo=FALSE}
+
+final_data <- data%>%
+  select(offensive_tds_allowed,Yards_Per_Offensive_Play,totalpoints)
+
+team_info <- predict(mod_fit_opt,
+          newdata = final_data,
+          interval = "prediction",
+          level = 0.95)
+team_names <- c("ILL","IND","IOWA","MAD","MICH","MICH ST.","MINN","NEB","NW","OSU","PSU","PU","RUT","WIS")
+
+df<- data.frame(team_names,team_info)
+df
+
+colors<-c("ILL" = "#E84A27", "IND" = "#990000", "IOWA" = "#FFCD00", "MAD" = "#E03A3E", "MICH" = "#00274C", "MICH ST." = "#18453B", "MINN" = "#7A0019", "NEB" = "#E41C38", "NW" = "#4E2A84", "OSU" = "#BB0000","PSU" = "#041E42", "PU" = "#CEB888", "RUT" = "#CC0033", "WIS"="#C5050C")
+
+ggplot(df, aes(x = team_names, y = df$fit*100)) +
+  geom_bar(stat = "identity", fill = colors) +
+  labs(title = "Big 10 Win Prediction Percentage", x = "Team", y = "Win Prediction (%)")+
+  ylim(0,100)
+
+```
+
+We predict OSU wins next year.
